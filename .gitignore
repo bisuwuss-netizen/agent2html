@@ -10,3 +10,4 @@ cache/
 .mypy_cache/
 .claude/
 .tmp.driveupload/
+external_data/
