@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ course_title }}</title>
+    <link rel="stylesheet" href="data:text/css;base64,{{ styles_base64 }}">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+
+    <!-- Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+
+    <!-- Animations (Optional, customized in CSS but good to have) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+</head>
+
+<body>
+
+    <div class="toolbar">
+        <span>16:9 专业模式 | {{ total_pages }}页</span>
+        <button onclick="exportToPDF()">导出 PDF (Cmd+P)</button>
+    </div>
+
+    <div class="slides-wrapper">
+        {{ slides_content }}
+    </div>
+
+    <script>
+        // 自动缩放适配屏幕
+        function fitToScreen() {
+            const wrapper = document.querySelector('.slides-wrapper');
+            const slideWidth = 1920;
+            const windowWidth = window.innerWidth;
+            const scale = Math.min((windowWidth - 160) / slideWidth, 1);
+            wrapper.style.transform = `scale(${scale})`;
+        }
+
+        window.addEventListener('resize', fitToScreen);
+        document.addEventListener('DOMContentLoaded', fitToScreen);
+
+        // 导出 PDF
+        function exportToPDF() {
+            alert("请使用浏览器的 '打印' (Cmd + P) 功能。\n在打印设置中选择 '保存为 PDF'，\n并确保勾选 '背景图形'，布局选择 '横向'。");
+            window.print();
+        }
+
+        // 智能图片填充（供后端调用）
+        function fillImageSlot(slotId, imageUrl) {
+            const slot = document.getElementById(slotId);
+            if (slot) {
+                slot.style.backgroundImage = `url(${imageUrl})`;
+                slot.style.backgroundSize = 'cover';
+                slot.style.backgroundPosition = 'center';
+                slot.style.border = 'none';
+                Array.from(slot.children).forEach(child => child.style.opacity = '0');
+            }
+        }
+
+        // 键盘翻页
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') {
+                e.preventDefault();
+                if (currentSlide < slides.length - 1) {
+                    currentSlide++;
+                    slides[currentSlide].scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                if (currentSlide > 0) {
+                    currentSlide--;
+                    slides[currentSlide].scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }
+        });
+
+        // 监听滚动更新当前页码
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    currentSlide = Array.from(slides).indexOf(entry.target);
+                }
+            });
+        }, { threshold: 0.5 });
+
+        slides.forEach(slide => observer.observe(slide));
+    </script>
+</body>
+
+</html>

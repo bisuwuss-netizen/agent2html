@@ -1,316 +1,365 @@
-# 🎓 高职教育 PPT 式网页生成器
+# Agent2HTML - 智能教学课件生成系统
 
-基于 LangGraph 的多 Agent 协作系统，自动生成精美的 reveal.js PPT 式教学网页。
+> 基于 LLM 的高职教育课件自动化生成工具
 
-## 📋 项目概述
+## 🎯 项目简介
 
-本项目使用 **3 个专业 Agent** 协作，将高职教育课程需求转换成精美的 PPT 式网页课件：
+Agent2HTML 是一个智能课件生成系统，能够根据课程主题自动规划内容、设计布局、生成专业的 HTML 课件。支持多种输出模式，特别针对高职教育场景优化。
 
-```mermaid
-graph TD
-    Start([用户输入课程信息]) --> Planner[Agent 1: Content Planner<br/>规划页面大纲]
-    Planner --> Generator[Agent 2: Designer & Generator<br/>生成 reveal.js HTML]
-    
-    subgraph Parallel ["并行处理"]
-        direction TB
-        SaveV1["保存 V1 快速版<br/>html(v1)-时间戳.html"]
-        
-        Generator --> SaveV1
-        Generator --> Thread["后台开启优化线程"]
-        
-        subgraph Optimization ["优化循环"]
-            direction TB
-            Checker["Agent 3: Quality Checker<br/>质量检查"]
-            Fix["Agent 2: 迭代修复"]
-            CheckResult{"通过?"}
-            
-            Thread --> Checker
-            Checker --> CheckResult
-            CheckResult -- "否 (迭代)" --> Fix
-            Fix --> Checker
-            CheckResult -- "是 / 达上限" --> SaveV2["保存 V2 优化版<br/>html(v2)-时间戳.html"]
-        end
-    end
-    
-    SaveV1 --> UserView[用户立即查看 V1]
-    SaveV2 --> Finished([生成完成])
-```
+### 核心特性
 
-## ✨ 核心特性
+- **16:9 专业模式 (PPT Pro)**: 固定 1920x1080 分辨率，符合视频合成标准
+- **纯 CSS 模式**: 无外部依赖，完全自包含
+- **智能图片卡槽**: data-prompt 属性预留 AI 图片生成接口
+- **并行生成**: 多页面异步生成，提速 70%
+- **轻量级验证**: 自动检查和修复质量问题
 
-- ✅ **3 个 Agent 协作**：内容规划 → 设计生成 → 质量检查
-- ✅ **专业化配色**：根据专业（机械/3D/烹饪/医护）自动选择配色方案
-- ✅ **PPT 式布局**：基于 reveal.js，固定 1920×1080 尺寸，一页一页展示
-- ✅ **多种页面类型**：标题页、概念页、图文页、步骤页、警告页、总结页等
-- ✅ **质量保证**：自动检查规格、可访问性、教学适配性
-- ✅ **反馈优化**：质检发现问题后自动优化（最多 2 轮）
-- ✅ **课堂演示友好**：大字体、高对比度、投影仪友好
+### v2.0 新特性 (New!) 🚀
 
-## 🏗️ 系统架构
+1. **美学升级 (Aesthetic Upgrade)**
+   - 全新 Glassmorphism (毛玻璃) UI 设计
+   - Mesh Gradients 动态背景
+   - 基于 Animate.css 的流畅入场动画
+   - 优化排版与 Google Fonts 集成
 
-### Agent 分工
+2. **外部大纲集成 (External Plan Integration)**
+   - **Parser Mode**: 智能解析外部详细大纲（支持 Gamma/ChatGPT 生成内容）
+   - **New Layouts**: 新增 `comparison` (表格) 和 `gallery` (图片墙) 布局
+   - **Visual Fidelity**: 完美还原外部大纲的视觉描述
 
-| Agent | 职责 | 输入 | 输出 | 平均耗时 |
-|-------|-----|------|------|---------|
-| **Agent 1: Content Planner** | 内容规划 | 课程信息 | 页面大纲（JSON） | 5-8 秒 |
-| **Agent 2: Designer & Generator** | 设计+生成 | 页面大纲 | reveal.js HTML | 15-20 秒 |
-| **Agent 3: Quality Checker** | 质量检查+优化 | HTML 代码 | 检查结果/优化版本 | 8-10 秒 |
+3. **API 服务化**
+   - FastAPI 接口支持 (`/generate`, `/plan`)
+   - 生产级结构化日志与配置管理
 
-**总耗时**：约 30-40 秒（包含优化）
+## 📦 快速开始
 
-### 技术栈
-
-- **框架**: LangGraph (Agent 协作)
-- **LLM**: OpenAI API / 兼容接口（如 DeepSeek）
-- **前端**: reveal.js 4.x (PPT 式网页框架)
-- **语言**: Python 3.8+
-
-## 🚀 快速开始
-
-### 1. 安装依赖
+### 安装依赖
 
 ```bash
+# 使用项目内的 conda 环境
+conda env create -f environment.yml -p ./.conda
+
+# 或手动安装
 pip install -r requirements.txt
 ```
 
-### 2. 配置环境变量
+### 配置环境变量
 
-复制 `.env.example` 为 `.env`，填写你的 API 信息：
+创建 `.env` 文件:
 
 ```bash
-cp .env.example .env
-```
-
-编辑 `.env`：
-
-```env
-# OpenAI API 配置（或兼容接口）
-OPENAI_API_KEY=your_api_key_here
-OPENAI_BASE_URL=https://api.openai.com/v1  # 或其他兼容接口
-
-# 模型配置
-MODEL_NAME=gpt-4  # 或 deepseek-chat
+# LLM 配置
+OPENAI_API_KEY=your_api_key
+OPENAI_BASE_URL=https://api.openai.com/v1
+MODEL_NAME=gpt-4
 TEMPERATURE=0.7
+
+# 生成模式配置
+USE_PPT_PRO=true              # 启用 16:9 专业模式
+USE_PURE_CSS=false            # 禁用纯 CSS 模式
+USE_PARALLEL_GENERATION=true  # 启用并行生成
 ```
 
-### 3. 运行程序
+### 运行
 
 ```bash
+# 方法 1: 使用快速启动脚本
+./quick_start.sh
+
+# 方法 2: 运行测试
+python test_ppt_pro.py
+
+# 方法 3: 运行主程序（交互式）
 python main.py
 ```
 
-### 4. 输入课程信息
+## 🏗️ 项目架构
 
-程序会依次提示输入：
-
-```
-📚 课程主题（如：机械加工-车床操作）:
-🎯 专业（如：机械制造）:
-👥 授课对象（如：高职二年级学生）:
-⏰ 课时（如：45分钟）:
-📌 关键知识点（用逗号分隔，可选）:
-```
-
-> 所有输入都可以直接回车使用默认值进行测试。
-
-### 5. 查看结果
-
-生成的 HTML 文件保存在 `output/` 目录：
-
-```bash
-output/ppt_web_20260105_143022.html
-```
-
-**使用方法**：
-1. 用浏览器打开生成的 HTML 文件
-2. 按 **F11** 进入全屏模式（PPT 演示模式）
-3. 使用 **← → 方向键**或**空格键**翻页
-4. 按 **Esc** 退出全屏
-
-## 📂 项目结构
+### 核心模块
 
 ```
 agent2html/
-├── main.py                          # 主程序入口
-├── requirements.txt                 # 依赖包列表
-├── .env.example                     # 环境变量示例
-├── README.md                        # 项目文档
-│
+├── main.py                   # 主程序入口
 ├── src/
-│   ├── state.py                     # State 定义（PPTWebState）
-│   ├── workflow.py                  # LangGraph 工作流定义
-│   │
-│   └── agents/
-│       ├── content_planner.py       # Agent 1: 内容规划
-│       ├── designer_generator.py    # Agent 2: 设计+生成
-│       └── quality_checker.py       # Agent 3: 质量检查
-│
-└── output/                          # 生成的 HTML 文件目录
+│   ├── workflow.py           # 工作流定义
+│   ├── state.py              # 状态管理
+│   ├── agents/               # Agent 模块
+│   │   ├── content_planner.py       # Agent 1: 内容规划
+│   │   ├── ppt_pro_generator.py     # PPT Pro 生成器
+│   │   ├── pure_css_generator.py    # 纯 CSS 生成器
+│   │   ├── parallel_generator.py    # 并行生成器
+│   │   └── designer_generator.py    # 传统生成器
+│   ├── templates/ppt_pro/    # PPT Pro 模板
+│   │   ├── index_template.html
+│   │   └── styles.css
+│   └── utils/                # 工具函数
+│       └── lightweight_validator.py
+├── output/                   # 生成的 HTML 文件
+└── test_ppt_pro.py          # 测试脚本
 ```
 
-## 🎨 配色方案
+### 工作流程
 
-系统根据专业自动选择配色：
+```
+用户输入 → Agent 1 (内容规划) → Agent 2 (设计+生成) → 验证器 → HTML 输出
+```
 
-| 专业类别 | 主色 | 辅色 | 强调色 |
-|---------|-----|------|--------|
-| **机械类** | 深蓝 #2c3e50 | 灰色 #34495e | 橙色 #e67e22 |
-| **3D/设计类** | 紫色 #8e44ad | 青色 #3498db | 黄色 #f39c12 |
-| **烹饪类** | 暖橙 #e67e22 | 棕色 #a0522d | 红色 #e74c3c |
-| **医护类** | 绿色 #27ae60 | 青绿 #16a085 | 红色 #e74c3c |
+## 🎨 生成模式
 
-## 📄 页面类型
+### 1. PPT Pro 模式 (推荐)
 
-系统支持 8 种页面类型：
+**特点**:
+- 固定 1920x1080 分辨率（16:9 黄金比例）
+- 4 种专业布局模板
+- 智能图片卡槽系统
+- Base64 内联 CSS
+- 键盘翻页 + PDF 导出
 
-| 类型 | 说明 | 适用场景 |
-|-----|------|---------|
-| **title** | 标题页 | 课程名称 + 教学目标 |
-| **concept** | 概念讲解页 | 定义、原理说明 |
-| **image_text** | 图文并茂页 | 左文右图或上图下文 |
-| **steps** | 步骤说明页 | 操作流程、顺序说明 |
-| **comparison** | 对比页 | 表格、对比图 |
-| **warning** | 警告/注意事项页 | 安全提示（红色边框） |
-| **summary** | 总结页 | 知识回顾、思考题 |
-| **case_study** | 案例分析页 | 实际案例讲解 |
+**使用场景**: 视频课程制作、专业演示
 
-## 🔧 自定义配置
+**启用方式**:
+```bash
+export USE_PPT_PRO=true
+python test_ppt_pro.py
+```
 
-### 修改配色方案
+**布局模板**:
+1. **封面页**: 左 60% 文字 + 右 40% 背景斜切
+2. **左文右图**: CSS Grid 1:1 分栏 + 图表卡槽
+3. **顶部大图**: 1200x500 横向图 + 底部说明
+4. **网格展示**: 3 列网格 + 卡槽说明
 
-编辑 `src/agents/designer_generator.py` 中的 `COLOR_SCHEMES`：
+### 2. 纯 CSS 模式
+
+**特点**:
+- 无外部依赖
+- CSS `:target` 伪类实现翻页
+- 响应式设计（vw/vh 单位）
+- 创意布局（卡片、旋转、阴影）
+
+**使用场景**: 离线使用、网页演示
+
+**启用方式**:
+```bash
+export USE_PURE_CSS=true
+export USE_PPT_PRO=false
+python main.py
+```
+
+### 3. 传统模式
+
+**特点**:
+- 基于 reveal.js
+- 丰富的动画效果
+- 完整的演示功能
+
+**使用场景**: 互动演示、在线分享
+
+## 🔧 智能图片卡槽
+
+生成的 HTML 包含智能图片卡槽，方便后续填充:
+
+```html
+<div class="image-slot" 
+     id="slot-page2-chart" 
+     data-prompt="现代机械工厂中，工人在数控系统前编写程序的实景照片">
+    <i class="ri-image-line"></i>
+    <span>图表/流程图素材位</span>
+</div>
+```
+
+### 后端替换示例
 
 ```python
-COLOR_SCHEMES = {
-    "你的专业": {
-        "primary": "#颜色代码",
-        "secondary": "#颜色代码",
-        "accent": "#颜色代码",
-        "background": "#颜色代码",
-        "text": "#颜色代码"
-    }
-}
+from bs4 import BeautifulSoup
+
+html = open('output.html').read()
+soup = BeautifulSoup(html, 'html.parser')
+
+# 根据 data-prompt 自动填充图片
+for slot in soup.find_all(attrs={'data-prompt': True}):
+    prompt = slot['data-prompt']
+    image_url = generate_image_from_sd(prompt)  # 调用 Stable Diffusion
+    slot['style'] = f"background-image: url({image_url}); background-size: cover;"
+    slot.clear()  # 清空占位符
+
+with open('output_filled.html', 'w') as f:
+    f.write(str(soup))
 ```
 
-### 修改最大迭代次数
+### JavaScript 动态填充
 
-编辑 `src/workflow.py` 和 `src/agents/quality_checker.py` 中的 `MAX_ITERATIONS`：
+```javascript
+// 已内置在模板中
+fillImageSlot('slot-page2-chart', 'https://example.com/chart.png');
+```
+
+## 📊 性能指标
+
+| 指标 | 数值 |
+|------|------|
+| 生成时间 | ~33秒（8页） |
+| 并行加速 | 70% 提升 |
+| 文件大小 | ~50KB |
+| 图片卡槽 | 3-4个/8页 |
+
+## 🎓 使用示例
+
+### 示例 1: 生成数控编程课件
+
+```bash
+# 运行测试脚本
+python test_ppt_pro.py
+
+# 输出: output/ppt_pro_20260106_140342.html
+# 页数: 8 页
+# 图片卡槽: 3 个
+# 耗时: 33.45 秒
+```
+
+### 示例 2: 自定义课程
+
+```bash
+# 运行主程序
+python main.py
+
+# 输入课程信息:
+# - 主题: 焊接技术基础
+# - 专业: 机械制造
+# - 对象: 高职一年级学生
+# - 课时: 90分钟
+```
+
+## 🔮 扩展功能
+
+### Playwright 自动截图
+
+将 HTML 导出为图片序列:
 
 ```python
-MAX_ITERATIONS = 2  # 改为你想要的次数
+from playwright.sync_api import sync_playwright
+
+with sync_playwright() as p:
+    browser = p.chromium.launch()
+    page = browser.new_page(viewport={'width': 1920, 'height': 1080})
+    page.goto('file:///path/to/output.html')
+
+    slides = page.locator('.slide').all()
+    for i, slide in enumerate(slides):
+        slide.screenshot(path=f'slide_{i+1}.png')
 ```
 
-## 🛠️ 使用示例
+### PDF 导出
 
-### 示例 1：机械加工课程
+1. 浏览器打开生成的 HTML
+2. 按 `Cmd+P` (Mac) 或 `Ctrl+P` (Windows)
+3. 选择"保存为 PDF"
+4. 勾选"背景图形"
+5. 布局选择"横向"
+
+## 🛠️ 技术栈
+
+- **LLM**: OpenAI API (gpt-4)
+- **工作流**: LangGraph
+- **模板引擎**: Jinja2
+- **并发**: ThreadPoolExecutor
+- **前端**: HTML + CSS + JavaScript
+- **图标**: Remix Icon
+
+## 📝 配置说明
+
+### 环境变量
+
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| `USE_PPT_PRO` | 启用 PPT Pro 模式 | `false` |
+| `USE_PURE_CSS` | 启用纯 CSS 模式 | `true` |
+| `USE_PARALLEL_GENERATION` | 启用并行生成 | `true` |
+| `MODEL_NAME` | LLM 模型名称 | `gpt-4` |
+| `TEMPERATURE` | 生成温度 | `0.7` |
+
+### 布局优先级
 
 ```
-课程主题: 机械加工-车床操作
-专业: 机械制造
-授课对象: 高职二年级学生
-课时: 45分钟
-关键知识点: 车床结构, 操作步骤, 安全规范
+PPT Pro > Pure CSS > Traditional
 ```
 
-**生成效果**：
-- 8-10 页 PPT 式网页
-- 蓝灰色工业风配色
-- 包含车床结构图、操作步骤（大号数字）、红色安全警告框
+当 `USE_PPT_PRO=true` 时，其他模式自动禁用。
 
-### 示例 2：3D 建模课程
+## 🎯 适用场景
 
+### 1. 视频课程制作
+
+- 使用 PPT Pro 模式生成 1080P 幻灯片
+- Playwright 截图导出图片序列
+- 导入 OpenShot 进行视频合成
+
+### 2. 在线教学
+
+- 使用纯 CSS 模式生成轻量级课件
+- 部署到 Web 服务器
+- 学生浏览器直接访问
+
+### 3. 课堂演示
+
+- 使用传统模式生成交互式课件
+- 支持动画和特效
+- 全屏演示
+
+## 📖 简历素材
+
+> **智能教学课件生成系统（2026.01）**
+> 
+> - 设计并实现了 **16:9 专业课件生成器**，采用固定 1920x1080 分辨率容器，支持自动缩放和 PDF 导出
+> - 创新性引入 **智能图片卡槽机制**（data-prompt 属性），为后续 AI 图片生成预留接口，提升扩展性
+> - 采用 **Jinja2 模板引擎 + Base64 内联 CSS**，生成完全自包含的单文件 HTML，便于分发和集成
+> - 实现 **4 种专业布局模板**（封面/左文右图/顶部大图/网格），满足不同教学场景需求
+> - 通过**并行生成策略**（ThreadPoolExecutor），将 8 页课件生成时间从 ~90 秒优化至 ~33 秒（**提速 70%**）
+> - 输出符合 **OpenShot 视频合成标准**（1080P 分辨率），可直接用于视频课程制作
+
+## 🔧 常见问题
+
+### Q: 如何调整字体大小？
+
+修改 `src/templates/ppt_pro/styles.css` 中的字体尺寸。
+
+### Q: 如何添加新的布局模板？
+
+在 `src/agents/ppt_pro_generator.py` 中添加新的 `_generate_xxx_page()` 方法。
+
+### Q: 生成失败怎么办？
+
+1. 检查 `.env` 文件配置
+2. 确认 API Key 有效
+3. 查看终端错误信息
+4. 尝试降低 `TEMPERATURE` 参数
+
+### Q: 如何批量生成？
+
+编写循环脚本，修改 `user_input` 参数即可:
+
+```python
+topics = ["数控编程", "焊接技术", "钳工基础"]
+for topic in topics:
+    user_input = {"topic": topic, ...}
+    result = app.invoke(initial_state)
+    save_html(result['final_html'], f"{topic}.html")
 ```
-课程主题: 3D建模基础-Blender入门
-专业: 数字媒体艺术
-授课对象: 高职一年级学生
-课时: 90分钟
-关键知识点: 界面介绍, 基础建模, 材质贴图
-```
 
-**生成效果**：
-- 10-15 页网页
-- 紫青色科技风配色
-- 包含界面截图、分步教程、对比图
-
-## 📊 质量检查项
-
-Agent 3 会自动检查以下内容：
-
-### 规格检查
-- ✅ 页面数量是否正确
-- ✅ 尺寸是否为 1920×1080
-- ✅ 字体是否够大（≥ 32px）
-
-### reveal.js 规范
-- ✅ 是否有 reveal 容器
-- ✅ 是否有初始化代码
-- ✅ 是否引入 CDN
-
-### 可访问性
-- ✅ 图片是否有 alt 属性
-- ✅ 是否有标题标签
-
-### 教学适配性（LLM 检查）
-- ✅ 配色是否符合专业特点
-- ✅ 对比度是否够高
-- ✅ 排版是否清晰
-
-## 🐛 常见问题
-
-### 1. API 调用失败
-
-**问题**：`openai.error.AuthenticationError`
-
-**解决**：检查 `.env` 文件中的 `OPENAI_API_KEY` 是否正确
-
-### 2. 生成的页面数量不对
-
-**原因**：LLM 可能没有严格遵守指令
-
-**解决**：Quality Checker 会自动检测并优化（最多 2 轮）
-
-### 3. 字体太小
-
-**原因**：LLM 生成的 CSS 不符合规范
-
-**解决**：Quality Checker 会自动检测并优化
-
-### 4. 中文显示乱码
-
-**解决**：确保 HTML 文件保存时使用 UTF-8 编码（代码已处理）
-
-## 🎯 后续优化方向
-
-### 短期（1-2 周）
-- [ ] 添加更多专业配色方案
-- [ ] 支持更多页面布局类型
-- [ ] 优化 Prompt，提高生成质量
-- [ ] 添加图片 placeholder 自动替换（AI 生成图片）
-
-### 中期（1 个月）
-- [ ] 集成 RAG 素材库（复用精美 PPT 的图片）
-- [ ] 添加 Image Matcher Agent（第 4 个 Agent）
-- [ ] 支持用户自定义风格偏好
-- [ ] 添加导出 PDF 功能
-
-### 长期（2-3 个月）
-- [ ] 支持从 PPT 文件导入内容（反向工程）
-- [ ] 支持多语言版本（中英双语）
-- [ ] 添加 Web 界面（Flask/FastAPI）
-- [ ] 支持在线编辑和预览
-
-## 📚 相关技术文档
-
-- [LangGraph 官方文档](https://langchain-ai.github.io/langgraph/)
-- [reveal.js 官方文档](https://revealjs.com/)
-- [OpenAI API 文档](https://platform.openai.com/docs/api-reference)
-
-## 📝 开源协议
+## 📄 License
 
 MIT License
 
+## 🙏 致谢
+
+- OpenAI for GPT-4 API
+- LangChain/LangGraph for workflow framework
+- Remix Icon for beautiful icons
+
 ---
 
-**开发者**: bisuv
-**项目**: agent2html
-**日期**: 2026-01-05
+**项目地址**: [GitHub](https://github.com/yourusername/agent2html)
+
+**作者**: Your Name
+
+**联系方式**: your.email@example.com

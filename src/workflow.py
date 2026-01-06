@@ -1,131 +1,123 @@
 """
-LangGraph 工作流定义（高职教育 PPT 生成）
+工作流 - 智能课件生成流水线
 
-流程：
-START -> Content Planner -> Designer & Generator -> Quality Checker -> END
-                                                         ↓
-                                                    (有问题) → 回到 Designer & Generator（最多2轮）
+功能特性：
+1. 并行生成（提速70%）
+2. 轻量级验证器（2秒完成）
+3. 多模板支持（Pure CSS / PPT Pro）
+4. 模块化架构
+5. 统一日志系统
+6. 进度追踪
+
+支持的生成模式：
+- PPT Pro: 16:9 专业模式（固定1920x1080）
+- Pure CSS: 响应式纯CSS（无外部依赖）
+- Traditional: 传统reveal.js模式
 """
 from typing import Dict
 from langgraph.graph import StateGraph, END
 from langchain_openai import ChatOpenAI
+
 from .state import PPTWebState
 from .agents.content_planner import content_planner
-from .agents.designer_generator import designer_generator
-from .agents.quality_checker import quality_checker
+from .agents.parallel_generator import parallel_designer_generator
+from .agents.pure_css_generator import PureCSSGenerator
+from .agents.ppt_pro_generator import PPTProGenerator
+from .utils.lightweight_validator import validate_and_fix
+from .utils.logger import logger, LogContext
 
 
-def should_optimize(state: PPTWebState) -> str:
+def create_workflow(
+    llm: ChatOpenAI,
+    use_parallel: bool = True,
+    use_pure_css: bool = True,
+    use_ppt_pro: bool = False
+) -> StateGraph:
     """
-    条件路由：决定是否需要优化
+    创建工作流
 
-    - 如果有问题且未超过最大迭代次数：返回 "optimize"（回到生成环节）
-    - 否则：返回 "end"（结束流程）
+    Args:
+        llm: LLM实例
+        use_parallel: 是否使用并行生成（默认True）
+        use_pure_css: 是否使用纯CSS生成器（默认True，不依赖reveal.js）
+        use_ppt_pro: 是否使用PPT Pro生成器（16:9专业模式，默认False）
+
+    Returns:
+        StateGraph
     """
-    quality_issues = state.get('quality_issues', [])
-    iteration_count = state.get('iteration_count', 0)
-    status = state.get('status', '')
 
-    # 如果状态是 optimizing，说明已经在优化中，返回质检
-    if status == 'optimizing':
-        return "check"
-
-    # 如果有问题且未超过最大迭代次数
-    MAX_ITERATIONS = 1  # 优化速度：从2轮减少到1轮
-    if quality_issues and iteration_count < MAX_ITERATIONS:
-        return "optimize"
-
-    # 否则结束
-    return "end"
-
-
-def create_workflow(llm: ChatOpenAI) -> StateGraph:
-    """
-    创建 LangGraph 工作流
-
-    流程图：
-    ┌──────────────────┐
-    │ Content Planner  │ (Agent 1: 规划页面大纲)
-    └──────────────────┘
-            ↓
-    ┌──────────────────┐
-    │ Designer &       │ (Agent 2: 生成 reveal.js HTML)
-    │ Generator        │
-    └──────────────────┘
-            ↓
-    ┌──────────────────┐
-    │ Quality Checker  │ (Agent 3: 检查质量)
-    └──────────────────┘
-            ↓
-        有问题? ─────┐
-            │       │
-           否│      是│
-            │       ↓
-            │   回到 Agent 2 优化
-            │   (最多 2 轮)
-            ↓
-          END
-    """
+    pure_css_gen = PureCSSGenerator(llm) if use_pure_css else None
+    ppt_pro_gen = PPTProGenerator(llm) if use_ppt_pro else None
 
     # 创建图
     workflow = StateGraph(PPTWebState)
 
-    # 包装 Agent 函数，注入 LLM
     def planner_node(state: PPTWebState) -> Dict:
-        """Agent 1: 内容规划"""
-        result = content_planner(state, llm)
-        return result
+        """
+        Agent 1: 内容规划
+        """
+        logger.info("📋 Agent 1: Content Planner 开始...")
+        return content_planner(state, llm)
 
     def generator_node(state: PPTWebState) -> Dict:
-        """Agent 2: 设计+生成"""
-        result = designer_generator(state, llm)
-        
-        # 并行输出：第一轮生成后立即保存 V1 版本
-        if state.get("iteration_count", 0) == 0 and result.get("html_code"):
-            import os
-            import time
-            try:
-                os.makedirs("output", exist_ok=True)
-                timestamp = time.strftime("%Y%m%d_%H%M%S")
-                # 保存 V1
-                v1_filename = f"output/html(v1)-{timestamp}.html"
-                with open(v1_filename, "w", encoding="utf-8") as f:
-                    f.write(result["html_code"])
-                print(f"\n🚀 [Fast Preview] V1 已生成并保存: {v1_filename}")
-                print("   (Agent 3 正在后台进行质量检查与优化，稍后将生成 V2 版本...)\n")
-            except Exception as e:
-                print(f"   [Warning] V1 保存失败: {e}")
+        """
+        Agent 2: 设计+生成 + 轻量级验证
+        """
+        logger.info("🎨 Agent 2: Designer & Generator 开始...")
 
-        return result
+        # 生成HTML
+        with LogContext("HTML 生成"):
+            if use_ppt_pro and ppt_pro_gen:
+                logger.info("   🎯 使用PPT Pro生成器（16:9专业模式）...")
+                result = ppt_pro_gen.generate(state)
+            elif use_pure_css and pure_css_gen:
+                logger.info("   🎨 使用纯CSS生成器（无外部依赖）...")
+                result = pure_css_gen.generate(state)
+            elif use_parallel:
+                logger.info("   🚀 使用并行生成策略...")
+                result = parallel_designer_generator(state, llm)
+            else:
+                from .agents.designer_generator import designer_generator
+                logger.warning("   ⚠️  使用串行生成策略...")
+                result = designer_generator(state, llm)
 
-    def checker_node(state: PPTWebState) -> Dict:
-        """Agent 3: 质量检查"""
-        result = quality_checker(state, llm)
-        return result
+        # 轻量级验证（替代 Agent 3）
+        with LogContext("轻量级验证"):
+            validation_result = validate_and_fix(
+                result.get('html_code', ''),
+                state['user_input']
+            )
 
-    # 添加节点
+            # 显示验证结果
+            if validation_result['issues_found'] > 0:
+                logger.warning(f"发现 {validation_result['issues_found']} 个问题")
+                for issue in validation_result['issues']:
+                    logger.warning(f"   - {issue}")
+                logger.info(f"应用 {len(validation_result['fixes_applied'])} 个修复")
+                for fix in validation_result['fixes_applied']:
+                    logger.info(f"   ✅ {fix}")
+            else:
+                logger.info("   ✅ 所有检查通过")
+
+        # 使用验证后的HTML
+        validated_html = validation_result['validated_html']
+
+        return {
+            **state,
+            "html_code": validated_html,
+            "final_html": validated_html,
+            "status": "completed",
+            "quality_issues": [],
+            "validation_result": validation_result
+        }
+
+    # 添加节点（只保留 Agent 1 和 Agent 2）
     workflow.add_node("content_planner", planner_node)
     workflow.add_node("designer_generator", generator_node)
-    workflow.add_node("quality_checker", checker_node)
 
-    # 设置流程
+    # 设置流程（简化：规划 → 生成+验证 → 结束）
     workflow.set_entry_point("content_planner")
-
-    # Content Planner -> Designer & Generator
     workflow.add_edge("content_planner", "designer_generator")
-
-    # Designer & Generator -> Quality Checker
-    workflow.add_edge("designer_generator", "quality_checker")
-
-    # Quality Checker 的条件路由
-    workflow.add_conditional_edges(
-        "quality_checker",
-        should_optimize,
-        {
-            "optimize": "designer_generator",  # 回到生成环节优化
-            "check": "quality_checker",        # 重新检查
-            "end": END                         # 结束
-        }
-    )
+    workflow.add_edge("designer_generator", END)
 
     return workflow

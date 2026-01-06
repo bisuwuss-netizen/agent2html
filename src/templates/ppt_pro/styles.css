@@ -1,0 +1,650 @@
+/* 
+ * Agent2HTML PPT Pro Styles
+ * Design System: Modern Glassmorphism & Mesh Gradients
+ */
+
+:root {
+    /* ----- Color Palette (Semantic) ----- */
+    --primary: #3b82f6;
+    /* Vivid Blue */
+    --primary-dim: #3b82f620;
+    /* 20% opacity */
+    --accent: #8b5cf6;
+    /* Violet */
+    --success: #10b981;
+    --warning: #f59e0b;
+    --error: #ef4444;
+
+    /* ----- Typography ----- */
+    --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+
+    /* ----- Surface & Glass ----- */
+    --bg-dark: #0f172a;
+    /* Deep Slate */
+    --glass-surface: rgba(255, 255, 255, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.5);
+    --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+
+    /* Text Colors */
+    --text-main: #1e293b;
+    --text-sub: #475569;
+    --text-muted: #94a3b8;
+
+    /* ----- Slide Dimensions ----- */
+    --slide-width: 1920px;
+    --slide-height: 1080px;
+}
+
+/* Dark Mode Support (Optional Future Proofing) */
+@media (prefers-color-scheme: dark) {
+    /* You can override variables here if needed */
+}
+
+/* ----- Reset & Base ----- */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+}
+
+body {
+    background-color: #0f172a;
+    background-image:
+        radial-gradient(at 0% 0%, hsla(253, 16%, 7%, 1) 0, transparent 50%),
+        radial-gradient(at 50% 0%, hsla(225, 39%, 30%, 1) 0, transparent 50%),
+        radial-gradient(at 100% 0%, hsla(339, 49%, 30%, 1) 0, transparent 50%);
+    font-family: var(--font-sans);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 60px 0;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+/* ----- Toolbar (Glassmorphism) ----- */
+.toolbar {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: auto;
+    min-width: 400px;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    padding: 12px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 1000;
+    border-radius: 50px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    font-size: 14px;
+    font-weight: 500;
+    gap: 20px;
+}
+
+.toolbar button {
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.toolbar button:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+}
+
+.slides-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 60px;
+    margin-top: 40px;
+    transform-origin: top center;
+    padding-bottom: 100px;
+}
+
+/* ----- Slide Container (The Canvas) ----- */
+.slide {
+    width: var(--slide-width);
+    height: var(--slide-height);
+    background: white;
+    /* Fallback */
+    background: rgba(255, 255, 255, 0.95);
+    position: relative;
+    overflow: hidden;
+    border-radius: 24px;
+    box-shadow:
+        0 20px 50px -12px rgba(0, 0, 0, 0.25),
+        0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+    /* Inner glow */
+    padding: 80px 100px;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.3s ease;
+}
+
+/* Mesh Gradient Background for Cover/Special Slides */
+.bg-mesh {
+    background-color: #ffffff;
+    background-image:
+        radial-gradient(at 80% 0%, hsla(189, 100%, 56%, 0.2) 0px, transparent 50%),
+        radial-gradient(at 0% 50%, hsla(340, 100%, 76%, 0.2) 0px, transparent 50%),
+        radial-gradient(at 80% 50%, hsla(210, 100%, 56%, 0.2) 0px, transparent 50%),
+        radial-gradient(at 0% 100%, hsla(22, 100%, 77%, 0.2) 0px, transparent 50%);
+}
+
+/* Dots Texture Overlay */
+.texture-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+    background-size: 32px 32px;
+    opacity: 0.3;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* ----- Typography System ----- */
+h1 {
+    font-family: var(--font-sans);
+    font-size: 88px;
+    font-weight: 800;
+    letter-spacing: -2px;
+    color: var(--text-main);
+    line-height: 1.05;
+    margin-bottom: 24px;
+    background: linear-gradient(135deg, var(--text-main) 0%, #475569 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    position: relative;
+    z-index: 1;
+    animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+h2 {
+    font-family: var(--font-sans);
+    font-size: 56px;
+    font-weight: 700;
+    letter-spacing: -1px;
+    color: var(--text-main);
+    margin-bottom: 40px;
+    display: flex;
+    align-items: center;
+    position: relative;
+    z-index: 1;
+    animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.1s forwards;
+    opacity: 0;
+    /* Initial state for animation */
+}
+
+h2::before {
+    content: '';
+    display: block;
+    width: 8px;
+    height: 48px;
+    background: linear-gradient(to bottom, var(--primary), var(--accent));
+    margin-right: 24px;
+    border-radius: 4px;
+}
+
+p,
+li,
+span {
+    font-family: var(--font-sans);
+    font-size: 30px;
+    color: var(--text-sub);
+    line-height: 1.6;
+    letter-spacing: -0.01em;
+}
+
+/* ----- Layout Generators (Restored) ----- */
+
+/* Split Layout (Left Text, Right Image) */
+.split-layout {
+    flex-direction: row;
+    gap: 80px;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.text-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.img-col {
+    flex: 1;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.card-slot {
+    width: 100%;
+    height: 100%;
+    flex: 1;
+    min-height: 0;
+}
+
+/* Cover Page Background Slot (Right Side) */
+.bg-slot {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 45%;
+    border: none;
+    border-radius: 40px 0 0 40px;
+    /* Modern curved edge */
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    z-index: 0;
+    box-shadow: -20px 0 40px rgba(0, 0, 0, 0.05);
+}
+
+.cover-slide .content {
+    position: relative;
+    z-index: 1;
+    width: 55%;
+    padding-right: 40px;
+}
+
+/* ----- Components ----- */
+
+/* Image Slot with Shimmer */
+.image-slot {
+    background: #f1f5f9;
+    border: 2px solid #e2e8f0;
+    border-radius: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+    animation: scaleIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.2s forwards;
+    opacity: 0;
+}
+
+/* Shimmer Animation */
+.image-slot::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    background: linear-gradient(90deg,
+            rgba(255, 255, 255, 0) 0%,
+            rgba(255, 255, 255, 0.6) 50%,
+            rgba(255, 255, 255, 0) 100%);
+    transform: translateX(-100%);
+    animation: shimmer 2s infinite;
+}
+
+.image-slot:hover {
+    border-color: var(--primary);
+    transform: translateY(-4px);
+    box-shadow: 0 10px 30px -10px rgba(59, 130, 246, 0.4);
+}
+
+.image-slot i {
+    font-size: 64px;
+    margin-bottom: 20px;
+    color: #cbd5e1;
+    transition: color 0.3s;
+}
+
+.image-slot:hover i {
+    color: var(--primary);
+}
+
+.image-slot span {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-sub);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Refined List Styles */
+ul li {
+    list-style: none;
+    padding-left: 40px;
+    margin-bottom: 24px;
+    position: relative;
+    opacity: 0;
+    animation: slideInRight 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+ul li::before {
+    content: "•";
+    color: var(--primary);
+    position: absolute;
+    left: 0;
+    font-weight: bold;
+    font-size: 1.2em;
+}
+
+/* Stagger Animations for List Items */
+ul li:nth-child(1) {
+    animation-delay: 0.2s;
+}
+
+ul li:nth-child(2) {
+    animation-delay: 0.3s;
+}
+
+ul li:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+ul li:nth-child(4) {
+    animation-delay: 0.5s;
+}
+
+ul li:nth-child(5) {
+    animation-delay: 0.6s;
+}
+
+/* Grid Layout Improvements */
+.grid-layout {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 48px;
+    padding: 20px 0;
+}
+
+.grid-item {
+    background: white;
+    border: 1px solid #f1f5f9;
+    border-radius: 20px;
+    padding: 32px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+    opacity: 0;
+    animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.grid-item:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    border-color: var(--primary-dim);
+}
+
+.grid-item caption {
+    margin-top: 20px;
+    font-size: 24px;
+    color: var(--text-main);
+    font-weight: 600;
+}
+
+/* Cover Page Special Styling */
+.cover-slide {
+    background: radial-gradient(circle at top right, rgba(59, 130, 246, 0.1), transparent 40%),
+        radial-gradient(circle at bottom left, rgba(139, 92, 246, 0.1), transparent 40%);
+}
+
+.cover-slide .tag {
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    color: white;
+    padding: 8px 24px;
+    font-size: 20px;
+    font-weight: 600;
+    border-radius: 100px;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    margin-bottom: 32px;
+    display: inline-block;
+    animation: fadeInDown 0.6s ease forwards;
+}
+
+/* Steps Styling */
+.step-item .step-num {
+    background: linear-gradient(135deg, var(--primary), var(--accent)) !important;
+    box-shadow: 0 4px 10px rgba(59, 130, 246, 0.4);
+}
+
+/* Warning Cards */
+.warning-item {
+    border-left: 6px solid var(--warning) !important;
+    background: #fffbf2 !important;
+    border-radius: 12px;
+}
+
+/* Summary Cards */
+.summary-item {
+    background: white !important;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+/* Comparison Table Styles */
+.comparison-container {
+    width: 100%;
+    margin-top: 40px;
+    background: white;
+    border-radius: 20px;
+    padding: 40px;
+    box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05);
+}
+
+.compare-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-family: var(--font-sans);
+}
+
+.compare-table th {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--primary);
+    padding: 24px;
+    text-align: left;
+    border-bottom: 3px solid #f1f5f9;
+}
+
+.compare-table td {
+    padding: 24px;
+    font-size: 24px;
+    color: var(--text-sub);
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: top;
+    transition: background 0.2s;
+}
+
+.compare-table tr:hover td {
+    background: #f8fafc;
+}
+
+.compare-table tr:last-child td {
+    border-bottom: none;
+}
+
+.compare-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: var(--primary-dim);
+    border-radius: 50%;
+    margin-right: 12px;
+    color: var(--primary);
+    font-size: 20px;
+}
+
+/* Gallery / Puzzle Layout Styles */
+.gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: 32px;
+    height: 100%;
+    padding: 20px 0;
+}
+
+.gallery-item {
+    position: relative;
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    background: #000;
+}
+
+.gallery-item:hover {
+    transform: scale(1.02) translateY(-5px);
+    z-index: 10;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+.gallery-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.8;
+    transition: opacity 0.3s;
+}
+
+.gallery-item:hover img {
+    opacity: 1;
+}
+
+.gallery-caption {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    padding: 30px;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
+    color: white;
+    font-size: 28px;
+    font-weight: 600;
+    transform: translateY(10px);
+    transition: transform 0.3s;
+}
+
+.gallery-item:hover .gallery-caption {
+    transform: translateY(0);
+}
+
+/* ----- Animations Keyframes ----- */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-30px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(-30px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes scaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes shimmer {
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+/* ----- Responsive Scaling ----- */
+@media screen and (max-width: 1940px) {
+    .slides-wrapper {
+        transform: scale(0.6);
+        margin-top: -150px;
+    }
+}
+
+@media screen and (max-width: 1400px) {
+    .slides-wrapper {
+        transform: scale(0.4);
+        margin-top: -300px;
+    }
+}
+
+/* Print Overrides */
+@media print {
+    body {
+        background: white;
+        padding: 0;
+    }
+
+    .toolbar {
+        display: none;
+    }
+
+    .slides-wrapper {
+        transform: none !important;
+        padding: 0;
+        margin: 0;
+    }
+
+    .slide {
+        box-shadow: none;
+        break-after: page;
+        border: 1px solid #ddd;
+    }
+
+    .image-slot::after {
+        display: none;
+    }
+
+    /* Disable shimmer */
+}

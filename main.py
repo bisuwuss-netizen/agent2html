@@ -38,16 +38,23 @@ def main():
 
     print("\n" + "="*70)
     print("🎓 高职教育 PPT 式网页生成器 v2.0")
-    print("   🚀 并行生成 + 智能缓存")
+    print("   🚀 并行生成 + 专业模板")
     print("="*70)
 
     # 读取配置
-    use_cache = os.getenv("USE_CACHE", "true").lower() == "true"
-    use_parallel = os.getenv("USE_PARALLEL_GENERATION", "true").lower() == "true"
+    use_parallel = os.getenv("USE_PARALLEL_G"
+                             "ENERATION", "true").lower() == "true"
+    use_pure_css = os.getenv("USE_PURE_CSS", "true").lower() == "true"
+    use_ppt_pro = os.getenv("USE_PPT_PRO", "false").lower() == "true"
 
     print(f"\n⚙️  配置:")
-    print(f"   智能缓存: {'✅' if use_cache else '❌'}")
     print(f"   并行生成: {'✅' if use_parallel else '❌'}")
+    if use_ppt_pro:
+        print(f"   PPT Pro模式: ✅ (16:9 专业版)")
+    elif use_pure_css:
+        print(f"   纯CSS模式: ✅ (无外部依赖)")
+    else:
+        print(f"   传统模式: ✅ (使用reveal.js)")
 
     # 初始化 LLM
     llm = ChatOpenAI(
@@ -57,9 +64,14 @@ def main():
         openai_api_base=os.getenv("OPENAI_BASE_URL")
     )
 
-    # 创建优化版工作流
-    from src.workflow_optimized import create_optimized_workflow
-    workflow = create_optimized_workflow(llm)
+    # 创建工作流
+    from src.workflow import create_workflow
+    workflow = create_workflow(
+        llm,
+        use_parallel=use_parallel,
+        use_pure_css=use_pure_css,
+        use_ppt_pro=use_ppt_pro
+    )
     app = workflow.compile()
 
     # 用户输入
@@ -143,12 +155,6 @@ def main():
         print("📊 生成完成")
         print("="*70)
         print(f"⏱️  总耗时: {execution_time:.2f} 秒")
-
-        if final_state.get('from_cache'):
-            print(f"💾 结果来源: ✅ 缓存命中 (节省了 ~{300-execution_time:.0f}秒)")
-        else:
-            print(f"🆕 结果来源: 新生成")
-
         print(f"📄 生成页数: {final_state.get('planning', {}).get('total_pages', 'N/A')}")
 
         # 保存文件
@@ -156,13 +162,6 @@ def main():
         if html_to_save:
             filepath = save_html(html_to_save)
             print(f"\n✅ 文件已生成: {filepath}")
-
-            # 打印缓存统计
-            from src.utils.cache_manager import get_cache_manager
-            cache = get_cache_manager()
-            stats = cache.get_stats()
-            if stats['hits'] + stats['misses'] > 0:
-                print(f"\n💾 缓存统计: 命中率 {stats['hit_rate']}% ({stats['hits']}/{stats['hits'] + stats['misses']})")
 
     except KeyboardInterrupt:
         print("\n\n⚠️  用户中断")
