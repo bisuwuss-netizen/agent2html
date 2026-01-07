@@ -49,22 +49,15 @@ class StyleConfig:
     title_font_family: str = "Microsoft YaHei"
     body_font_family: str = "Microsoft YaHei"
 
-    # 专业配色映射
+    # 专业配色映射（增强版：15+套主题）
     professional_colors: Dict = field(default_factory=lambda: {
+        # 工科类
         '机械': {
             'primary': '#2c3e50',
             'secondary': '#34495e',
             'accent': '#7f8c8d',
             'text': '#ecf0f1',
             'background': '#1a252f',
-            'warning': '#e74c3c'
-        },
-        '医护': {
-            'primary': '#27ae60',
-            'secondary': '#2ecc71',
-            'accent': '#ecf0f1',
-            'text': '#ffffff',
-            'background': '#1e3a28',
             'warning': '#e74c3c'
         },
         '电子': {
@@ -75,6 +68,14 @@ class StyleConfig:
             'background': '#1e2a3a',
             'warning': '#e74c3c'
         },
+        '电气': {
+            'primary': '#f39c12',
+            'secondary': '#e67e22',
+            'accent': '#2c3e50',
+            'text': '#ffffff',
+            'background': '#2a2520',
+            'warning': '#e74c3c'
+        },
         '汽车': {
             'primary': '#e74c3c',
             'secondary': '#c0392b',
@@ -83,6 +84,48 @@ class StyleConfig:
             'background': '#2a1e1e',
             'warning': '#f39c12'
         },
+        '建筑': {
+            'primary': '#d35400',
+            'secondary': '#e67e22',
+            'accent': '#bdc3c7',
+            'text': '#ffffff',
+            'background': '#2c2318',
+            'warning': '#c0392b'
+        },
+        '土木': {
+            'primary': '#795548',
+            'secondary': '#8d6e63',
+            'accent': '#d7ccc8',
+            'text': '#ffffff',
+            'background': '#3e2723',
+            'warning': '#ff5722'
+        },
+        # 医护类
+        '医护': {
+            'primary': '#27ae60',
+            'secondary': '#2ecc71',
+            'accent': '#ecf0f1',
+            'text': '#ffffff',
+            'background': '#1e3a28',
+            'warning': '#e74c3c'
+        },
+        '医学': {
+            'primary': '#00bcd4',
+            'secondary': '#0097a7',
+            'accent': '#e0f7fa',
+            'text': '#ffffff',
+            'background': '#1a3a3a',
+            'warning': '#ff5722'
+        },
+        '护理': {
+            'primary': '#e91e63',
+            'secondary': '#c2185b',
+            'accent': '#fce4ec',
+            'text': '#ffffff',
+            'background': '#2d1a24',
+            'warning': '#ff5722'
+        },
+        # 计算机/信息类
         '计算机': {
             'primary': '#9b59b6',
             'secondary': '#8e44ad',
@@ -90,6 +133,98 @@ class StyleConfig:
             'text': '#ffffff',
             'background': '#2a1e3a',
             'warning': '#e74c3c'
+        },
+        '软件': {
+            'primary': '#00bcd4',
+            'secondary': '#26c6da',
+            'accent': '#263238',
+            'text': '#ffffff',
+            'background': '#1a2c30',
+            'warning': '#ff5722'
+        },
+        '网络': {
+            'primary': '#5c6bc0',
+            'secondary': '#3f51b5',
+            'accent': '#c5cae9',
+            'text': '#ffffff',
+            'background': '#1a1e3a',
+            'warning': '#ff5722'
+        },
+        # 农林类
+        '农业': {
+            'primary': '#4caf50',
+            'secondary': '#66bb6a',
+            'accent': '#c8e6c9',
+            'text': '#ffffff',
+            'background': '#1b2e1b',
+            'warning': '#ff9800'
+        },
+        '林业': {
+            'primary': '#2e7d32',
+            'secondary': '#388e3c',
+            'accent': '#a5d6a7',
+            'text': '#ffffff',
+            'background': '#1a261a',
+            'warning': '#ff5722'
+        },
+        '森林': {
+            'primary': '#1b5e20',
+            'secondary': '#2e7d32',
+            'accent': '#81c784',
+            'text': '#ffffff',
+            'background': '#0d2b0d',
+            'warning': '#ff9800'
+        },
+        # 商科类
+        '电商': {
+            'primary': '#ff5722',
+            'secondary': '#ff7043',
+            'accent': '#ffccbc',
+            'text': '#ffffff',
+            'background': '#2c1a15',
+            'warning': '#ffc107'
+        },
+        '金融': {
+            'primary': '#ffc107',
+            'secondary': '#ffca28',
+            'accent': '#37474f',
+            'text': '#212121',
+            'background': '#2a2820',
+            'warning': '#e91e63'
+        },
+        # 艺术/文化类
+        '艺术': {
+            'primary': '#673ab7',
+            'secondary': '#7c4dff',
+            'accent': '#ede7f6',
+            'text': '#ffffff',
+            'background': '#1a1a2e',
+            'warning': '#ff4081'
+        },
+        '音乐': {
+            'primary': '#e040fb',
+            'secondary': '#ea80fc',
+            'accent': '#f3e5f5',
+            'text': '#ffffff',
+            'background': '#2a1a2e',
+            'warning': '#ff5722'
+        },
+        # 通用极简风格
+        '极简浅色': {
+            'primary': '#2196f3',
+            'secondary': '#64b5f6',
+            'accent': '#1565c0',
+            'text': '#212121',
+            'background': '#fafafa',
+            'warning': '#ff5722'
+        },
+        '极简深色': {
+            'primary': '#90caf9',
+            'secondary': '#42a5f5',
+            'accent': '#64b5f6',
+            'text': '#e0e0e0',
+            'background': '#121212',
+            'warning': '#ff5722'
         },
     })
 

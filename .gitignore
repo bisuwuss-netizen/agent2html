@@ -11,3 +11,4 @@ cache/
 .claude/
 .tmp.driveupload/
 external_data/
+.vscode/

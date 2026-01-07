@@ -44,6 +44,38 @@ TEACHING_SCENES = {
 
 from langchain_core.callbacks import StreamingStdOutCallbackHandler
 
+
+def _try_parse_json_input(topic: str) -> Optional[Dict]:
+    """
+    尝试将输入解析为 JSON 规划数据
+    
+    如果输入是有效的 JSON 且包含 slides 或 pages 字段，直接返回解析后的字典。
+    否则返回 None，继续正常流程。
+    
+    支持的 JSON 格式：
+    1. 完整规划格式（包含 slides）
+    2. 简化格式（包含 pages）
+    """
+    # 快速检查：必须以 { 开头
+    topic_stripped = topic.strip()
+    if not topic_stripped.startswith('{'):
+        return None
+    
+    try:
+        data = json.loads(topic_stripped)
+        
+        # 验证是否是规划数据（必须包含 slides 或 pages）
+        if isinstance(data, dict) and ('slides' in data or 'pages' in data):
+            logger.info(f"   ✅ 检测到有效 JSON 规划数据")
+            return data
+        
+        return None
+        
+    except json.JSONDecodeError:
+        # 不是有效 JSON，继续正常流程
+        return None
+
+
 @retry_with_backoff(max_retries=3, base_delay=2.0)
 def _invoke_llm(llm: ChatOpenAI, messages: List) -> str:
     """带重试的 LLM 调用"""
@@ -57,22 +89,20 @@ def content_planner(state: Dict, llm: ChatOpenAI) -> Dict:
     """
     内容规划 Agent（增强版）
 
+    支持三种输入模式：
+    1. 简短主题 → 正常生成模式（LLM 生成完整规划）
+    2. 长文本大纲（>200字符）→ 解析模式（LLM 解析为 JSON）
+    3. JSON 格式 → 直接使用模式（跳过 LLM，直接处理）
+
     输入: state['user_input'] = {
-        "topic": "机械加工-车床操作",
+        "topic": "机械加工-车床操作" 或 长文本大纲 或 JSON 字符串,
         "major": "机械制造",
         "target_audience": "高职二年级学生",
         "duration": "45分钟",
         "key_points": ["车床结构", "操作步骤"]  # 可选
     }
 
-    输出: state['planning'] = {
-        "deck_title": "课程标题",
-        "subject": "主题",
-        "knowledge_points": [...],
-        "teaching_scene": "theory",
-        "style": {...},
-        "slides": [...]
-    }
+    输出: state['planning'] = {...}
     """
 
     with LogContext("内容规划 Agent"):
@@ -83,15 +113,34 @@ def content_planner(state: Dict, llm: ChatOpenAI) -> Dict:
         # 生成风格配置
         style_config = get_style_json(major, 'theory')
 
-        # 智能检测：如果输入内容过长（>200字符），启用"解析模式"
+        # ========== 模式检测 ==========
+        
+        # 模式1: JSON 直接输入检测
+        json_input = _try_parse_json_input(topic)
+        if json_input:
+            logger.info("   📋 检测到 JSON 输入，直接使用模式 (Direct Mode)...")
+            planning = json_input
+            planning['style'] = style_config
+            planning = _validate_and_enhance(planning, user_input)
+            
+            logger.info(f"规划完成: {planning['deck_title']}, 共 {len(planning['slides'])} 页")
+            
+            return {
+                **state,
+                "planning": planning,
+                "status": "planning_completed",
+                "messages": []
+            }
+        
+        # 模式2: 长文本解析模式（>200字符）
         is_parser_mode = len(topic) > 200
         
         if is_parser_mode:
             logger.info("   🔄 检测到外部大纲，启用解析模式 (Parser Mode)...")
             system_prompt = _build_parser_system_prompt()
-            user_prompt = _build_parser_user_prompt(topic, user_input) # topic 包含整个大纲内容
+            user_prompt = _build_parser_user_prompt(topic, user_input)
         else:
-            # 正常生成模式
+            # 模式3: 正常生成模式
             system_prompt = _build_system_prompt()
             user_prompt = _build_user_prompt(user_input)
 
@@ -296,21 +345,21 @@ def _validate_and_enhance(planning: Dict, user_input: Dict) -> Dict:
 
 
 def _convert_slides_to_pages(slides: List[Dict]) -> List[Dict]:
-    """将新版 slides 格式转换为旧版 pages 格式（兼容性）"""
+    """将新版 slides 格式转换为旧版 pages 格式（增强版 - 保留更多原始数据）"""
     pages = []
 
     # slide_type 到 page type 的映射
     type_mapping = {
-        'cover': 'title',
-        'objectives': 'intro',
+        'cover': 'cover',  # 保留 cover 不转换
+        'objectives': 'objectives',
         'intro': 'intro',
         'concept': 'concept',
-        'keypoints': 'concept',
+        'keypoints': 'keypoints',
         'structure': 'structure',
         'principle': 'principle',
         'steps': 'steps',
         'warning': 'warning',
-        'practice': 'steps',
+        'practice': 'practice',
         'summary': 'summary',
         'comparison': 'comparison',
         'gallery': 'gallery'
@@ -318,19 +367,19 @@ def _convert_slides_to_pages(slides: List[Dict]) -> List[Dict]:
 
     # slide_type 到 layout 的映射
     layout_mapping = {
-        'cover': 'center',
-        'objectives': 'text_with_bullets',
-        'intro': 'top_image_center',
-        'concept': 'left_text_right_image',
-        'keypoints': 'text_with_bullets',
-        'structure': 'left_text_right_image',
-        'principle': 'full_text_center',
-        'steps': 'numbered_steps',
-        'warning': 'warning_grid',
-        'practice': 'numbered_steps',
-        'summary': 'summary_boxes',
+        'cover': 'cover',
+        'objectives': 'cards_3col',
+        'intro': 'top_image',
+        'concept': 'split',
+        'keypoints': 'cards_4col',
+        'structure': 'split',
+        'principle': 'process_flow',
+        'steps': 'timeline',
+        'warning': 'warning',
+        'practice': 'steps',
+        'summary': 'summary',
         'comparison': 'comparison',
-        'gallery': 'gallery_grid'
+        'gallery': 'image_wall_2x2'
     }
 
     for slide in slides:
@@ -343,18 +392,24 @@ def _convert_slides_to_pages(slides: List[Dict]) -> List[Dict]:
         page = {
             'page_num': slide.get('index', 1),
             'type': type_mapping.get(slide_type, 'concept'),
+            'slide_type': slide_type,  # 保留原始 slide_type
             'title': slide.get('title', ''),
             'content': slide.get('bullets', []),
-            'layout': layout_mapping.get(slide_type, 'text_with_bullets'),
+            'layout': layout_mapping.get(slide_type, 'split'),
             'visual_emphasis': '',
-            'key_points': slide.get('bullets', [])
+            'key_points': slide.get('bullets', []),
+            # 新增字段
+            'notes': slide.get('notes'),  # 教师备注
+            'interactions': slide.get('interactions', []),  # 交互元素
         }
 
-        # 添加图片描述
+        # 添加完整的 assets 信息
         if has_image:
             first_asset = assets[0]
             page['image_description'] = first_asset.get('theme', '示意图')
             page['image_size'] = 'side' if first_asset.get('size') == '4:3' else 'top'
+            page['asset_type'] = first_asset.get('type', 'image')  # image/diagram/chart/icon
+            page['assets'] = assets  # 保留完整 assets 列表
 
         pages.append(page)
 
