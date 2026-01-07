@@ -15,18 +15,17 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from ..utils.logger import logger
 from ..utils.progress import ProgressTracker
 from ..config import config
-from .layouts import LayoutGenerator, select_layout
-
+from .layouts import LayoutGenerator, select_layout, _determine_subject_category
 
 class HTMLGenerator:
     """统一HTML生成器"""
     
     def __init__(self, max_workers: int = 4):
-        self.max_workers = max_workers
-        self.executor = ThreadPoolExecutor(max_workers=max_workers)
+        from .image_generator import ImageGenerator
+        self.image_generator = ImageGenerator()
     
     def generate(self, state: Dict) -> Dict:
-        """生成完整的HTML幻灯片（增强版）"""
+        """生成完整的HTML幻灯片"""
         logger.info("🎨 HTML Generator: 开始生成课件...")
         
         planning = state.get('planning')
@@ -36,31 +35,54 @@ class HTMLGenerator:
             logger.error("缺少 planning 数据")
             return {**state, "error": "缺少planning数据", "status": "failed"}
         
-        pages = planning.get('pages', [])
-        total_pages = len(pages)
-        
-        # 提取增强字段
+        # 1. 数据准备
+        slides = planning.get('slides', [])
+        deck_pages = planning.get('deck_content', {}).get('pages', [])
+        source_pages = deck_pages if deck_pages else planning.get('pages', [])
+        if not source_pages and slides:
+             from .planner import _convert_slides_to_pages
+             source_pages = _convert_slides_to_pages(slides)
+
+        total_pages = len(source_pages)
         subject = planning.get('subject', '')
-        knowledge_points = planning.get('knowledge_points', [])
-        teaching_scene = planning.get('teaching_scene', 'theory')
+        major = user_input.get('major', '')
         
-        logger.info(f"总页数: {total_pages}, 主题: {subject}")
+        logger.info(f"总页数: {total_pages}, 主题: {subject}, 专业: {major}")
         
-        # 获取配色（根据 teaching_scene 调整）
-        style = planning.get('style', {})
+        # 2. 生成图片资源
+        logger.info("   🚀 正在生成图片资源...")
+        assets_map = self.image_generator.generate_images_for_pages(source_pages)
+        logger.info(f"   ✅ 资源准备完成，获取到 {len(assets_map)} 张图片")
+        
+        # 3. 页面组装
+        style = planning.get('style_config', planning.get('style', {}))
+        teaching_scene = planning.get('teaching_request', {}).get('teaching_scene', 'theory')
         colors = style.get('color', self._get_colors(user_input, teaching_scene))
         
-        # 创建布局生成器
         layout_gen = LayoutGenerator(colors)
+        html_parts = []
+        progress = ProgressTracker(total_pages, "组装页面")
         
-        # 并行生成所有页面（传递增强数据）
-        html_parts = self._generate_pages(
-            pages, layout_gen, total_pages, 
-            subject, knowledge_points
-        )
+        for i, page in enumerate(source_pages):
+            try:
+                page_num = page.get('page_num', i + 1)
+                if page_num in assets_map:
+                    page['image_url'] = assets_map[page_num]
+                
+                # 生成页面 HTML
+                html = self._generate_page(
+                    page, layout_gen, total_pages, 
+                    subject=subject, major=major, # 传入 major
+                    knowledge_points=planning.get('knowledge_points', [])
+                )
+                html_parts.append(html)
+                progress.update()
+            except Exception as e:
+                logger.error(f"页面 {i+1} 组装失败: {e}")
+                html_parts.append(self._error_page(i+1))
         
-        # 合并成完整HTML
-        final_html = self._build_html(html_parts, planning, colors)
+        # 4. 合并输出
+        final_html = self._build_html(html_parts, planning, colors, major)
         
         logger.info("✅ HTML生成完成！")
         
@@ -72,106 +94,55 @@ class HTMLGenerator:
         }
     
     def _get_colors(self, user_input: Dict, teaching_scene: str = 'theory') -> Dict:
-        """获取配色方案（根据教学场景调整）"""
+        """获取配色方案"""
         major = user_input.get('major', '')
         colors = config.get_colors_for_major(major)
-        
-        # 根据教学场景微调配色
         if teaching_scene == 'practice':
-            # 实践教学使用更活跃的配色
-            colors = {**colors, 'accent': '#27ae60'}  # 绿色强调
+            colors = {**colors, 'accent': '#27ae60'}
         elif teaching_scene == 'safety':
-            # 安全教学突出警告色
-            colors = {**colors, 'accent': '#e74c3c'}  # 红色强调
-        
+            colors = {**colors, 'accent': '#e74c3c'}
         return colors
     
-    def _generate_pages(
-        self,
-        pages: List[Dict],
-        layout_gen: LayoutGenerator,
-        total_pages: int,
-        subject: str = '',
-        knowledge_points: List = None
-    ) -> List[str]:
-        """并行生成所有页面（增强版）"""
-        futures = {}
-        progress = ProgressTracker(len(pages), "生成页面")
-        
-        for page in pages:
-            future = self.executor.submit(
-                self._generate_page,
-                page, layout_gen, total_pages,
-                subject, knowledge_points  # 传递增强数据
-            )
-            futures[future] = page.get('page_num', 1)
-        
-        html_parts = [''] * len(pages)
-        for future in as_completed(futures):
-            page_num = futures[future]
-            try:
-                html = future.result()
-                html_parts[page_num - 1] = html
-                progress.update(message=f"页面 {page_num} 完成")
-            except Exception as e:
-                logger.error(f"页面 {page_num} 生成失败: {e}")
-                html_parts[page_num - 1] = self._error_page(page_num)
-                progress.update(message=f"页面 {page_num} 失败")
-        
-        return html_parts
-    
     def _generate_page(
-        self,
-        page: Dict,
-        layout_gen: LayoutGenerator,
-        total_pages: int,
-        subject: str = '',
-        knowledge_points: List = None
+        self, page: Dict, layout_gen: LayoutGenerator, total_pages: int,
+        subject: str = '', major: str = '', knowledge_points: List = None
     ) -> str:
-        """生成单个页面（增强版 - 传递更多数据）"""
-        page_type = page.get('type', 'concept')
-        page_num = page.get('page_num', 1)
-        has_image = bool(page.get('image_description'))
+        """生成单个页面"""
+        page_type = page.get('type', page.get('slide_type', 'concept'))
+        page_num = page.get('page_num', page.get('index', 1))
         
-        # 构建增强版内容数据
         content = {
             'title': page.get('title', '标题'),
             'subtitle': page.get('subtitle', ''),
-            'bullets': page.get('content', []) or page.get('key_points', []),
+            'bullets': page.get('content', []) or page.get('key_points', []) or page.get('bullets', []),
             'image_description': page.get('image_description', ''),
             'page_num': page_num,
             'total_pages': total_pages,
-            # 新增字段
-            'notes': page.get('notes'),  # 教师备注
-            'asset_type': page.get('asset_type', 'image'),  # image/diagram/chart/icon
-            'assets': page.get('assets', []),  # 完整资源列表
-            'slide_type': page.get('slide_type', page_type),  # 原始类型
-            'subject': subject,  # 课程主题（用于页眉）
-            'knowledge_points': knowledge_points or [],  # 知识点列表
-            'layout': page.get('layout'),  # 指定的布局
+            'notes': page.get('notes') or page.get('speaker_notes'),
+            'asset_type': page.get('asset_type', 'image'),
+            'assets': page.get('assets', []),
+            'slide_type': page_type,
+            'subject': subject,
+            'major': major, # 注入 major
+            'knowledge_points': knowledge_points or [],
+            'layout': page.get('layout', {}).get('template') if isinstance(page.get('layout'), dict) else page.get('layout'),
+            'image_url': page.get('image_url')
         }
         
-        # 如果指定了 layout，优先使用
         if content['layout'] and content['layout'] in LayoutGenerator.AVAILABLE_LAYOUTS:
             layout_name = content['layout']
         else:
-            # 智能选择布局
+            has_image = bool(content.get('image_url') or content['image_description'])
             layout_name = select_layout(page_type, content, has_image)
         
-        # 生成HTML
         slide_html = layout_gen.generate(layout_name, content)
         
-        # 添加页眉（如果有 subject）
-        if subject and page_num > 1:  # 封面页不加页眉
+        if subject and page_num > 1:
             slide_html = self._add_header(slide_html, subject, layout_gen.colors)
-        
-        # 添加教师备注（隐藏区域）
         if content['notes']:
             slide_html = self._add_notes(slide_html, content['notes'])
-        
-        # 添加页码
+            
         slide_html = self._add_page_indicator(slide_html, page_num, total_pages)
-        
         return slide_html
     
     def _add_header(self, html: str, subject: str, colors: Dict) -> str:
@@ -181,7 +152,6 @@ class HTMLGenerator:
         {subject}
     </div>
 '''
-        # 在 slide div 开头后插入
         insert_pos = html.find('>')
         if insert_pos != -1:
             return html[:insert_pos+1] + header + html[insert_pos+1:]
@@ -222,10 +192,13 @@ class HTMLGenerator:
 </div>
 '''
     
-    def _build_html(self, parts: List[str], planning: Dict, colors: Dict) -> str:
+    def _build_html(self, parts: List[str], planning: Dict, colors: Dict, major: str = '') -> str:
         """构建完整HTML文档"""
         title = planning.get('deck_title') or planning.get('course_title', '课程')
         slides = '\n        '.join(parts)
+        
+        # 确定学科类别
+        category = _determine_subject_category(major).value
         styles = self._generate_styles(colors)
         
         return f'''<!DOCTYPE html>
@@ -239,7 +212,7 @@ class HTMLGenerator:
 {styles}
     </style>
 </head>
-<body>
+<body class="subject-{category}">
     <div class="presentation">
         {slides}
     </div>
@@ -264,7 +237,6 @@ class HTMLGenerator:
         function nextSlide() {{ showSlide((currentSlide + 1) % totalSlides); }}
         function prevSlide() {{ showSlide((currentSlide - 1 + totalSlides) % totalSlides); }}
         
-        // 键盘/触摸导航
         document.addEventListener('keydown', e => {{
             if (e.key === 'ArrowRight' || e.key === ' ') nextSlide();
             if (e.key === 'ArrowLeft') prevSlide();
@@ -276,10 +248,8 @@ class HTMLGenerator:
             else prevSlide();
         }});
         
-        // 初始化
         showSlide(0);
         
-        // 图片插槽热插拔支持
         window.fillImageSlot = function(slotId, imageUrl) {{
             const slot = document.querySelector(`[data-slot-id="${{slotId}}"]`);
             if (slot) {{
@@ -302,7 +272,7 @@ class HTMLGenerator:
 </html>'''
     
     def _generate_styles(self, colors: Dict) -> str:
-        """生成CSS样式"""
+        """生成CSS样式 (含学科特效)"""
         primary = colors.get('primary', '#2c3e50')
         secondary = colors.get('secondary', '#34495e')
         accent = colors.get('accent', '#7f8c8d')
@@ -319,11 +289,49 @@ class HTMLGenerator:
             overflow: hidden;
         }}
         
+        /* 学科专属背景纹理 */
+        body.subject-engineering .presentation {{
+            background-image: 
+                linear-gradient({primary}10 1px, transparent 1px),
+                linear-gradient(90deg, {primary}10 1px, transparent 1px);
+            background-size: 40px 40px;
+        }}
+        
+        body.subject-medical .presentation {{
+             background-image: radial-gradient({primary}15 2px, transparent 2px);
+             background-size: 30px 30px;
+        }}
+
+        body.subject-arts .presentation {{
+             background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJub25lIiAvPjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjQwIiBzdHJva2U9InJnYmEoMjAwLDIwMCwyMDAsMC4xKSIgc3Ryb2tlLXdpZHRoPSIyIiBmaWxsPSJub25lIiAvPjwvc3ZnPg==');
+             background-size: 100px 100px;
+        }}
+
+        body.subject-business .presentation {{
+             background-image: repeating-linear-gradient(45deg, {primary}08 0, {primary}08 1px, transparent 0, transparent 50%);
+             background-size: 30px 30px;
+        }}
+        
+        body.subject-science .presentation {{
+             background-image:
+                radial-gradient({primary}10 15%, transparent 16%),
+                radial-gradient({secondary}10 15%, transparent 16%);
+             background-size: 60px 60px;
+             background-position: 0 0, 30px 30px;
+        }}
+        
+        body.subject-nature .presentation {{
+            background-image:
+                linear-gradient(120deg, {secondary}15 0%, transparent 100%),
+                linear-gradient(-120deg, {primary}15 0%, transparent 100%);
+        }}
+        
         .presentation {{
             width: 1920px;
             height: 1080px;
             margin: 0 auto;
             position: relative;
+            background-color: {background};
         }}
         
         .slide {{

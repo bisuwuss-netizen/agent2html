@@ -19,15 +19,15 @@ from enum import Enum
 # ============================================================================
 
 class SlotSize(Enum):
-    """标准插槽尺寸（基于精品PPT分析）"""
-    FULL = (1920, 1080)      # 全屏背景（作为背景层，不遮挡内容）
-    HERO = (1200, 600)       # 主图（顶部横图）
-    HALF = (800, 700)        # 左右分栏图
-    CARD_LG = (500, 400)     # 大卡片内图
-    CARD_MD = (400, 300)     # 中卡片内图
-    CARD_SM = (300, 200)     # 小卡片内图
-    THUMB = (200, 150)       # 缩略图
-    ICON = (80, 80)          # 图标
+    """标准插槽尺寸（符合3.5规范）"""
+    FULL = (1920, 1080)      # 全屏背景图
+    HERO = (1600, 900)       # 大幅主视觉图（16:9）
+    HALF = (800, 600)        # 左右分栏图片（4:3）
+    CARD_LG = (500, 400)     # 大卡片配图
+    CARD_MD = (400, 300)     # 中等卡片配图
+    CARD_SM = (300, 200)     # 小卡片配图
+    THUMB = (200, 150)       # 缩略图、图墙单元
+    ICON = (80, 80)          # 图标、标识
 
     @property
     def width(self) -> int:
@@ -721,9 +721,48 @@ class LayoutGenerator:
 # 智能布局选择器
 # ============================================================================
 
+# ============================================================================
+# 智能布局选择器
+# ============================================================================
+
+class SubjectCategory(Enum):
+    """学科类别"""
+    MEDICAL = "medical"       # 医卫护理
+    ENGINEERING = "engineering" # 工程技术
+    NATURE = "nature"         # 自然农林
+    ARTS = "arts"             # 人文艺术
+    BUSINESS = "business"     # 商科电商
+    SCIENCE = "science"       # 基础理科
+    GENERAL = "general"       # 通用
+
+def _determine_subject_category(major: str) -> SubjectCategory:
+    """根据专业名称确定学科类别"""
+    if not major:
+        return SubjectCategory.GENERAL
+        
+    major = major.lower()
+    mapping = {
+        SubjectCategory.MEDICAL: ['医', '护', '药', '诊', '康复'],
+        SubjectCategory.ARTS: ['艺', '文', '语', '历', '哲', '设', '美', '乐'],
+        SubjectCategory.BUSINESS: ['商', '经', '管', '市', '财', '电商'],
+        SubjectCategory.NATURE: ['农', '林', '牧', '生', '态', '园'],
+        SubjectCategory.SCIENCE: ['理', '数', '物', '化'],
+        SubjectCategory.ENGINEERING: ['工', '机', '建', '程', '汽', '械', '电子', '电气', '软件', '算', '技']
+    }
+    
+    # post-check for ambiguous cases
+    if '电子商务' in major: return SubjectCategory.BUSINESS
+    if '工商' in major: return SubjectCategory.BUSINESS
+    
+    for category, keywords in mapping.items():
+        if any(k in major for k in keywords):
+            return category
+            
+    return SubjectCategory.GENERAL
+
 def select_layout(slide_type: str, content: Dict, has_image: bool = False) -> str:
     """
-    根据内容智能选择最佳布局
+    根据内容和学科智能选择最佳布局
     
     Args:
         slide_type: 幻灯片类型
@@ -736,7 +775,42 @@ def select_layout(slide_type: str, content: Dict, has_image: bool = False) -> st
     bullets = content.get('bullets', []) or content.get('content', [])
     count = len(bullets) if isinstance(bullets, list) else 1
     
-    # 类型到布局的映射
+    # 获取学科偏好
+    # content.get('subject') 通常是 topic，我们需要 major
+    # 暂时尝试从 style_config 或 user_input 推断，或假设 content 中有 contextual info
+    # 这里我们假设 content['major'] 或 content['subject'] 可以作为依据，或者使用 general 规则
+    # 由于接口限制，我们可能无法直接获取 major，除非从 generator 传入。
+    # Generator 已经有了 content['subject'] (course title), 这不够准确。
+    # 我们需要在 generator.py 中把 major 注入到 content 中。
+    # 假设 content['major'] 存在 (需要在 Generator 中添加)
+    major = content.get('major', '') 
+    category = _determine_subject_category(major)
+    
+    # 基础映射
+    base_layout = 'split' if has_image else 'cards_3col'
+    
+    # 学科特定规则
+    if category == SubjectCategory.MEDICAL:
+        # 医卫：强调流程和步骤
+        if slide_type in ['steps', 'process']: return 'steps'
+        if slide_type == 'concept': return 'split' # 左图右文展示解剖/设备
+        
+    elif category == SubjectCategory.ENGINEERING:
+        # 工科：强调结构和参数
+        if slide_type == 'structure': return 'comparison' if count > 2 else 'split'
+        if slide_type == 'concept': return 'split' 
+        
+    elif category == SubjectCategory.ARTS:
+        # 艺术：强调留白和引用
+        if slide_type == 'intro': return 'quote'
+        if slide_type == 'concept': return 'top_image'
+        
+    elif category == SubjectCategory.BUSINESS:
+        # 商科：强调数据
+        if slide_type in ['stats', 'analysis']: return 'stats'
+        if slide_type == 'keypoints': return 'cards_4col'
+
+    # 通用类型映射
     type_map = {
         'cover': 'cover',
         'title': 'cover',
@@ -755,7 +829,7 @@ def select_layout(slide_type: str, content: Dict, has_image: bool = False) -> st
         'stats': 'stats',
     }
     
-    return type_map.get(slide_type, 'split' if has_image else 'cards_3col')
+    return type_map.get(slide_type, base_layout)
 
 
 def get_all_layouts() -> list:

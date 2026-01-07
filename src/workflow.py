@@ -42,7 +42,7 @@ def create_workflow(llm: ChatOpenAI) -> StateGraph:
     def generator_node(state: PPTWebState) -> Dict:
         """Agent 2: HTML生成 + 验证"""
         logger.info("🎨 Agent 2: HTML生成...")
-        
+
         # 生成HTML
         with LogContext("HTML生成"):
             result = generator.generate(state)

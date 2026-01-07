@@ -1,6 +1,6 @@
 """
 Image Generator Agent
-负责：根据图片描述生成实际图片
+负责：根据图片描述生成实际图片 (同步版)
 """
 import os
 import base64
@@ -10,7 +10,7 @@ from openai import OpenAI
 
 class ImageGenerator:
     """
-    图片生成器 - 使用 DALL-E 或其他模型生成图片
+    图片生成器 (同步版) - 使用 DALL-E 或其他模型生成图片
     """
 
     def __init__(self, api_key: str = None, api_base: str = None):
@@ -23,7 +23,7 @@ class ImageGenerator:
 
     def generate_image(self, description: str, size: str = "1024x1024") -> str:
         """
-        生成单张图片
+        生成单张图片 (同步)
 
         Args:
             description: 图片描述
@@ -33,7 +33,7 @@ class ImageGenerator:
             base64 编码的图片数据
         """
         try:
-            print(f"   🎨 正在生成图片: {description[:50]}...")
+            print(f"   🎨 正在生成图片: {description[:30]}...")
 
             response = self.client.images.generate(
                 model=self.model,
@@ -41,7 +41,8 @@ class ImageGenerator:
                 size=size,
                 quality="standard",
                 n=1,
-                response_format="b64_json"
+                response_format="b64_json",
+                timeout=30.0
             )
 
             # 获取 base64 编码的图片
@@ -51,7 +52,7 @@ class ImageGenerator:
             return f"data:image/png;base64,{image_b64}"
 
         except Exception as e:
-            print(f"   ⚠️  图片生成失败: {e}")
+            print(f"   ⚠️  图片生成失败 ({type(e).__name__}): {e}")
             # 返回占位符
             return self._get_placeholder_svg(description)
 
@@ -74,7 +75,7 @@ class ImageGenerator:
 
     def generate_images_for_pages(self, pages: List[Dict]) -> Dict[int, str]:
         """
-        为所有需要图片的页面生成图片
+        为所有需要图片的页面生成图片 (串行)
 
         Args:
             pages: 页面列表
@@ -82,24 +83,39 @@ class ImageGenerator:
         Returns:
             {page_num: image_data_url} 的字典
         """
-        images = {}
+        results = {}
 
         for page in pages:
-            page_num = page.get('page_num')
+            page_num = page.get('page_num', page.get('index'))
+            
+            # 使用 assets 列表（新结构）或 image_description（旧结构）
+            assets = page.get('assets', [])
             image_desc = page.get('image_description')
-            image_size_hint = page.get('image_size', 'side')
+            
+            # 确定是否需要生成
+            target_desc = None
+            size = "1024x1024"
 
-            if image_desc and image_desc != 'null':
-                # 根据位置选择尺寸
-                if image_size_hint == 'top':
-                    size = "1792x1024"  # 横向图片
-                else:
-                    size = "1024x1024"  # 方形图片
+            if assets:
+                # 优先使用 assets 中的第一个图片
+                for asset in assets:
+                    if asset.get('type') in ['image', 'diagram']:
+                        target_desc = asset.get('theme') or asset.get('prompt')
+                        size_hint = asset.get('size', '1:1')
+                        if size_hint == '16:9': size = "1792x1024"
+                        elif size_hint == '4:3': size = "1024x1024"
+                        break
+            elif image_desc and image_desc != 'null':
+                # 兼容旧结构
+                target_desc = image_desc
+                if page.get('image_size') == 'top':
+                    size = "1792x1024"
+            
+            if target_desc:
+                image_url = self.generate_image(target_desc, size)
+                results[page_num] = image_url
 
-                image_url = self.generate_image(image_desc, size)
-                images[page_num] = image_url
-
-        return images
+        return results
 
 
 def generate_images_agent(state: Dict, api_key: str = None, api_base: str = None) -> Dict:
