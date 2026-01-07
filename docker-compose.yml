@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  agent2html:
+    build: .
+    container_name: agent2html-api
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL}
+      - MODEL_NAME=${MODEL_NAME:-gpt-4}
+      - TEMPERATURE=${TEMPERATURE:-0.7}
+      - DEBUG=${DEBUG:-false}
+    env_file:
+      - .env
+    volumes:
+      - ./output:/app/output
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # 开发模式（带热重载）
+  agent2html-dev:
+    build: .
+    container_name: agent2html-dev
+    ports:
+      - "8001:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL}
+      - MODEL_NAME=${MODEL_NAME:-gpt-4}
+      - TEMPERATURE=${TEMPERATURE:-0.7}
+      - DEBUG=true
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+      - ./output:/app/output
+    command: uvicorn api:app --host 0.0.0.0 --port 8000 --reload
+    profiles:
+      - dev

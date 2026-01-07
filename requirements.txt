@@ -4,6 +4,11 @@ langchain==0.3.7
 langchain-openai==0.2.9
 langchain-core>=0.3.17
 
+# API 服务
+fastapi==0.115.0
+uvicorn==0.30.6
+openai==1.55.0
+
 # 其他依赖
 python-dotenv==1.0.0
 pydantic==2.9.2
@@ -13,6 +18,10 @@ aiohttp==3.9.5
 # 缓存相关
 sentence-transformers==3.3.1
 numpy==1.26.4
+
+# 测试相关
+pytest==8.3.3
+pytest-asyncio==0.24.0
 
 # 可选：美化输出
 rich==13.9.4

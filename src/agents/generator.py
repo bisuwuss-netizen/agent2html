@@ -205,7 +205,7 @@ class HTMLGenerator:
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=1920, height=1080">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{title}</title>
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     <style>
@@ -213,11 +213,39 @@ class HTMLGenerator:
     </style>
 </head>
 <body class="subject-{category}">
-    <div class="presentation">
-        {slides}
+    <div class="presentation-container">
+        <div class="presentation">
+            {slides}
+        </div>
     </div>
     
     <script>
+        // 响应式缩放
+        function scalePresentation() {{
+            const container = document.querySelector('.presentation-container');
+            const presentation = document.querySelector('.presentation');
+            const slideWidth = 1920;
+            const slideHeight = 1080;
+            
+            const windowWidth = window.innerWidth;
+            const windowHeight = window.innerHeight;
+            
+            // 计算缩放比例（取较小值以确保完整显示）
+            const scaleX = windowWidth / slideWidth;
+            const scaleY = windowHeight / slideHeight;
+            const scale = Math.min(scaleX, scaleY, 1); // 最大不超过1
+            
+            presentation.style.transform = `scale(${{scale}})`;
+            presentation.style.transformOrigin = 'center center';
+            
+            // 居中容器
+            container.style.width = (slideWidth * scale) + 'px';
+            container.style.height = (slideHeight * scale) + 'px';
+        }}
+        
+        window.addEventListener('resize', scalePresentation);
+        window.addEventListener('load', scalePresentation);
+        
         // 幻灯片导航
         let currentSlide = 0;
         const slides = document.querySelectorAll('.slide');
@@ -241,6 +269,8 @@ class HTMLGenerator:
             if (e.key === 'ArrowRight' || e.key === ' ') nextSlide();
             if (e.key === 'ArrowLeft') prevSlide();
             if (e.key === 'f' || e.key === 'F') document.documentElement.requestFullscreen?.();
+            if (e.key === 'Home') showSlide(0);
+            if (e.key === 'End') showSlide(totalSlides - 1);
         }});
         
         document.addEventListener('click', e => {{
@@ -267,12 +297,24 @@ class HTMLGenerator:
                 prompt: el.dataset.prompt
             }}));
         }};
+        
+        // 导出模式（用于截图/PDF）
+        window.exportMode = function(enable = true) {{
+            const presentation = document.querySelector('.presentation');
+            if (enable) {{
+                presentation.style.transform = 'none';
+                document.querySelector('.presentation-container').style.width = '1920px';
+                document.querySelector('.presentation-container').style.height = '1080px';
+            }} else {{
+                scalePresentation();
+            }}
+        }};
     </script>
 </body>
 </html>'''
     
     def _generate_styles(self, colors: Dict) -> str:
-        """生成CSS样式 (含学科特效)"""
+        """生成CSS样式 (含学科特效 + 响应式)"""
         primary = colors.get('primary', '#2c3e50')
         secondary = colors.get('secondary', '#34495e')
         accent = colors.get('accent', '#7f8c8d')
@@ -283,9 +325,25 @@ class HTMLGenerator:
         return f'''
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
         
+        html, body {{
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }}
+        
         body {{
             font-family: 'Microsoft YaHei', 'PingFang SC', -apple-system, sans-serif;
             background: #0a0a0a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }}
+        
+        /* 响应式容器 */
+        .presentation-container {{
+            display: flex;
+            justify-content: center;
+            align-items: center;
             overflow: hidden;
         }}
         
@@ -329,9 +387,11 @@ class HTMLGenerator:
         .presentation {{
             width: 1920px;
             height: 1080px;
-            margin: 0 auto;
             position: relative;
             background-color: {background};
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            /* 初始居中对齐 */
+            transform-origin: center center;
         }}
         
         .slide {{
@@ -398,11 +458,22 @@ class HTMLGenerator:
             z-index: 1000;
         }}
         
-        /* 响应式 */
-        @media screen and (max-width: 1920px) {{
+        /* 打印/导出样式 */
+        @media print {{
+            body {{
+                background: white;
+            }}
+            .presentation-container {{
+                width: 1920px !important;
+                height: 1080px !important;
+            }}
             .presentation {{
-                transform: scale(calc(100vw / 1920));
-                transform-origin: top left;
+                transform: none !important;
+                box-shadow: none;
+            }}
+            .slide {{
+                display: flex !important;
+                page-break-after: always;
             }}
         }}
 '''
